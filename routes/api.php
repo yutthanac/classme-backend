@@ -67,6 +67,9 @@ Route::get('prefixes', [PrefixController::class, 'index']);
 Route::post('prefixes', [PrefixController::class, 'store']);
 Route::delete('prefixes/{id}', [PrefixController::class, 'destroy']);
 
+// Users Management
+Route::apiResource('users', \App\Http\Controllers\Api\UserController::class);
+
 // Roles & Permissions
 Route::prefix('roles')->group(function () {
     Route::get('/', [RoleController::class, 'index']);

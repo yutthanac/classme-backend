@@ -48,12 +48,22 @@ class RoleController extends Controller
         ]);
     }
 
-    public function currentUser(Request $request)
+    private function resolveUser(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
-            $user = User::with(['role.permissions', 'roles.permissions'])->first();
-        } else {
+        if (!$user && $token = $request->bearerToken()) {
+            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+            if ($accessToken) {
+                $user = $accessToken->tokenable;
+            }
+        }
+        return $user ?: User::first();
+    }
+
+    public function currentUser(Request $request)
+    {
+        $user = $this->resolveUser($request);
+        if ($user) {
             $user->load(['role.permissions', 'roles.permissions']);
         }
 
@@ -65,7 +75,7 @@ class RoleController extends Controller
 
     public function updateProfile(Request $request)
     {
-        $user = $request->user() ?: User::first();
+        $user = $this->resolveUser($request);
         $validated = $request->validate([
             'prefix' => 'nullable|string',
             'name' => 'required|string',
