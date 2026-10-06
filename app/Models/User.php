@@ -11,18 +11,31 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['prefix', 'name', 'email', 'password', 'role_id'])]
+#[Fillable(['prefix', 'name', 'email', 'password', 'role_id', 'avatar'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $appends = ['display_name_with_prefix'];
+    protected $appends = ['display_name_with_prefix', 'avatar_url'];
 
     public function getDisplayNameWithPrefixAttribute(): string
     {
         return trim(($this->prefix ?? '') . ' ' . $this->name);
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (!$this->avatar) {
+            return null;
+        }
+
+        if (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://') || str_starts_with($this->avatar, 'data:')) {
+            return $this->avatar;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar);
     }
 
     public function role()
@@ -33,6 +46,11 @@ class User extends Authenticatable
     public function roles()
     {
         return $this->belongsToMany(Role::class);
+    }
+
+    public function subjects()
+    {
+        return $this->belongsToMany(Subject::class, 'subject_user')->withTimestamps();
     }
 
     /**

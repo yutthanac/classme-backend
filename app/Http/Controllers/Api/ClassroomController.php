@@ -10,7 +10,7 @@ class ClassroomController extends Controller
 {
     public function index()
     {
-        $classrooms = Classroom::withCount('students')->orderBy('name')->get();
+        $classrooms = Classroom::withCount('students')->with('schedules.subject')->orderBy('name')->get();
 
         return response()->json([
             'status' => 'success',
@@ -27,14 +27,41 @@ class ClassroomController extends Controller
             'academic_year' => 'nullable|string',
             'semester' => 'nullable|string',
             'advisor_name' => 'nullable|string',
+            'subject_ids' => 'nullable|array',
+            'subject_ids.*' => 'exists:subjects,id',
         ]);
 
+        if (empty($validated['room'])) {
+            if (preg_match('/\/(\d+)/', $validated['name'], $m)) {
+                $validated['room'] = $m[1];
+            } else {
+                $validated['room'] = '1';
+            }
+        }
+
+        $subjectIds = $validated['subject_ids'] ?? [];
+        unset($validated['subject_ids']);
+
         $classroom = Classroom::create($validated);
+
+        if (!empty($subjectIds)) {
+            foreach ($subjectIds as $subjId) {
+                \App\Models\Schedule::firstOrCreate([
+                    'classroom' => $classroom->name,
+                    'subject_id' => $subjId,
+                ], [
+                    'day_of_week' => 1,
+                    'start_time' => '08:30',
+                    'end_time' => '10:10',
+                    'room_number' => 'ห้อง ' . $classroom->name,
+                ]);
+            }
+        }
 
         return response()->json([
             'status' => 'success',
             'message' => 'เพิ่มห้องเรียนเรียบร้อยแล้ว',
-            'data' => $classroom,
+            'data' => $classroom->load('schedules.subject'),
         ], 201);
     }
 
@@ -61,14 +88,42 @@ class ClassroomController extends Controller
             'academic_year' => 'nullable|string',
             'semester' => 'nullable|string',
             'advisor_name' => 'nullable|string',
+            'subject_ids' => 'nullable|array',
+            'subject_ids.*' => 'exists:subjects,id',
         ]);
 
+        if (empty($validated['room'])) {
+            if (preg_match('/\/(\d+)/', $validated['name'], $m)) {
+                $validated['room'] = $m[1];
+            } else {
+                $validated['room'] = '1';
+            }
+        }
+
+        $subjectIds = $validated['subject_ids'] ?? null;
+        unset($validated['subject_ids']);
+
         $classroom->update($validated);
+
+        if ($subjectIds !== null) {
+            // Sync schedules for these subjects in this room
+            \App\Models\Schedule::where('classroom', $classroom->name)->delete();
+            foreach ($subjectIds as $subjId) {
+                \App\Models\Schedule::create([
+                    'classroom' => $classroom->name,
+                    'subject_id' => $subjId,
+                    'day_of_week' => 1,
+                    'start_time' => '08:30',
+                    'end_time' => '10:10',
+                    'room_number' => 'ห้อง ' . $classroom->name,
+                ]);
+            }
+        }
 
         return response()->json([
             'status' => 'success',
             'message' => 'แก้ไขข้อมูลห้องเรียนเรียบร้อยแล้ว',
-            'data' => $classroom,
+            'data' => $classroom->load('schedules.subject'),
         ]);
     }
 

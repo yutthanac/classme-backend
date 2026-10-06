@@ -80,10 +80,42 @@ class RoleController extends Controller
             'prefix' => 'nullable|string',
             'name' => 'required|string',
             'role_id' => 'nullable|exists:roles,id',
+            'avatar' => 'nullable',
         ]);
 
         if ($user) {
-            $user->update($validated);
+            $updateData = [
+                'prefix' => $validated['prefix'] ?? '',
+                'name' => $validated['name'],
+            ];
+
+            if ($request->hasFile('avatar')) {
+                if ($user->avatar && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->avatar)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar);
+                }
+                $updateData['avatar'] = $request->file('avatar')->store('avatars', 'public');
+            } elseif ($request->has('avatar')) {
+                $avatarVal = $request->input('avatar');
+                if (empty($avatarVal) || $avatarVal === 'delete' || $avatarVal === 'remove') {
+                    if ($user->avatar && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->avatar)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar);
+                    }
+                    $updateData['avatar'] = null;
+                } elseif (is_string($avatarVal) && preg_match('/^data:image\/(\w+);base64,/', $avatarVal, $matches)) {
+                    $ext = strtolower($matches[1]) === 'jpeg' ? 'jpg' : strtolower($matches[1]);
+                    $data = substr($avatarVal, strpos($avatarVal, ',') + 1);
+                    $decoded = base64_decode($data);
+                    if ($decoded !== false) {
+                        $filename = 'avatars/' . \Illuminate\Support\Str::random(40) . '.' . $ext;
+                        \Illuminate\Support\Facades\Storage::disk('public')->put($filename, $decoded);
+                        $updateData['avatar'] = $filename;
+                    }
+                } elseif (is_string($avatarVal)) {
+                    $updateData['avatar'] = $avatarVal;
+                }
+            }
+
+            $user->update($updateData);
             if (isset($validated['role_id'])) {
                 $user->roles()->sync([$validated['role_id']]);
             }

@@ -36,6 +36,7 @@ Route::apiResource('subjects', SubjectController::class);
 // Schedules
 Route::get('schedules', [ScheduleController::class, 'index']);
 Route::post('schedules', [ScheduleController::class, 'store']);
+Route::put('schedules/{id}', [ScheduleController::class, 'update']);
 Route::delete('schedules/{id}', [ScheduleController::class, 'destroy']);
 
 // Attendance
@@ -68,6 +69,9 @@ Route::post('prefixes', [PrefixController::class, 'store']);
 Route::delete('prefixes/{id}', [PrefixController::class, 'destroy']);
 
 // Users Management
+Route::post('users/avatar-upload', [\App\Http\Controllers\Api\UserController::class, 'uploadAvatarStandalone']);
+Route::post('users/{id}/avatar', [\App\Http\Controllers\Api\UserController::class, 'uploadAvatar']);
+Route::post('users/{id}', [\App\Http\Controllers\Api\UserController::class, 'update']);
 Route::apiResource('users', \App\Http\Controllers\Api\UserController::class);
 
 // Roles & Permissions

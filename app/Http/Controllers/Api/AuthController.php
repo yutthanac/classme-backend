@@ -17,7 +17,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::with(['role.permissions', 'roles.permissions'])
+        $user = User::with(['role.permissions', 'roles.permissions', 'subjects'])
             ->where('email', $request->email)
             ->first();
 
@@ -49,7 +49,7 @@ class AuthController extends Controller
             if ($accessToken) {
                 $user = $accessToken->tokenable;
                 if ($user) {
-                    $user->load(['role.permissions', 'roles.permissions']);
+                    $user->load(['role.permissions', 'roles.permissions', 'subjects']);
                     return response()->json([
                         'status' => 'success',
                         'data' => $user,

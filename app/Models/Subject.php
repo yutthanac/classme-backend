@@ -13,9 +13,20 @@ class Subject extends Model
         'code',
         'name',
         'teacher_name',
+        'user_id',
         'credit',
         'color',
     ];
+
+    public function teacher()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function teachers()
+    {
+        return $this->belongsToMany(User::class, 'subject_user')->withTimestamps();
+    }
 
     public function schedules()
     {

@@ -49,6 +49,29 @@ class ScheduleController extends Controller
         ], 201);
     }
 
+    public function update(Request $request, $id)
+    {
+        $schedule = Schedule::findOrFail($id);
+
+        $validated = $request->validate([
+            'subject_id' => 'sometimes|exists:subjects,id',
+            'classroom' => 'sometimes|string',
+            'day_of_week' => 'sometimes|integer|between:1,7',
+            'start_time' => 'sometimes|string',
+            'end_time' => 'sometimes|string',
+            'room_number' => 'nullable|string',
+        ]);
+
+        $schedule->update($validated);
+        $schedule->load('subject');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'อัปเดตตารางเรียนเรียบร้อยแล้ว',
+            'data' => $schedule,
+        ]);
+    }
+
     public function destroy($id)
     {
         $schedule = Schedule::findOrFail($id);
