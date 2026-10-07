@@ -20,6 +20,14 @@ class ClassroomController extends Controller
 
     public function store(Request $request)
     {
+        // If ID passed, forward to update
+        if ($request->filled('id')) {
+            $existing = Classroom::find($request->id);
+            if ($existing) {
+                return $this->update($request, $existing->id);
+            }
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|unique:classrooms,name',
             'level' => 'nullable|string',
@@ -80,6 +88,7 @@ class ClassroomController extends Controller
     public function update(Request $request, $id)
     {
         $classroom = Classroom::findOrFail($id);
+        $oldName = $classroom->name;
 
         $validated = $request->validate([
             'name' => 'required|string|unique:classrooms,name,' . $id,
@@ -104,19 +113,42 @@ class ClassroomController extends Controller
         unset($validated['subject_ids']);
 
         $classroom->update($validated);
+        $newName = $classroom->name;
 
+        // 1. Cascade classroom rename across related tables
+        if ($oldName !== $newName) {
+            \App\Models\Schedule::where('classroom', $oldName)->update([
+                'classroom' => $newName,
+                'room_number' => 'ห้อง ' . $newName,
+            ]);
+            \App\Models\Student::where('classroom', $oldName)->update(['classroom' => $newName]);
+            \App\Models\AttendanceSession::where('classroom', $oldName)->update(['classroom' => $newName]);
+            \App\Models\AiSheetUpload::where('classroom', $oldName)->update(['classroom' => $newName]);
+        }
+
+        // 2. Sync subjects/schedules only if subject_ids was explicitly provided
         if ($subjectIds !== null) {
-            // Sync schedules for these subjects in this room
-            \App\Models\Schedule::where('classroom', $classroom->name)->delete();
+            // Keep existing schedules for still-assigned subjects so user layout/times are NOT wiped out
+            \App\Models\Schedule::where('classroom', $newName)
+                ->whereNotIn('subject_id', $subjectIds)
+                ->delete();
+
+            // Only add schedules for new subjects that don't have one yet in this room
             foreach ($subjectIds as $subjId) {
-                \App\Models\Schedule::create([
-                    'classroom' => $classroom->name,
-                    'subject_id' => $subjId,
-                    'day_of_week' => 1,
-                    'start_time' => '08:30',
-                    'end_time' => '10:10',
-                    'room_number' => 'ห้อง ' . $classroom->name,
-                ]);
+                $exists = \App\Models\Schedule::where('classroom', $newName)
+                    ->where('subject_id', $subjId)
+                    ->exists();
+
+                if (!$exists) {
+                    \App\Models\Schedule::create([
+                        'classroom' => $newName,
+                        'subject_id' => $subjId,
+                        'day_of_week' => 1,
+                        'start_time' => '08:30',
+                        'end_time' => '10:10',
+                        'room_number' => 'ห้อง ' . $newName,
+                    ]);
+                }
             }
         }
 
