@@ -25,6 +25,8 @@ Route::prefix('auth')->group(function () {
 });
 
 // Students
+Route::post('students/batch-import', [StudentController::class, 'batchImport']);
+Route::post('students/ai-scan-roster', [StudentController::class, 'aiScanRoster']);
 Route::apiResource('students', StudentController::class);
 
 // Classrooms
